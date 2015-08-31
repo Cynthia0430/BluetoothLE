@@ -1,5 +1,7 @@
 package com.floatdesignlabs.android.atom;
 
+import com.floatdesignlabs.android.atom.bluetooth.BluetoothFragment;
+
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
 import android.os.Bundle;
@@ -9,6 +11,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
+import android.widget.LinearLayout;
 
 
 public class AtomActivity extends FragmentActivity {
@@ -19,6 +22,7 @@ public class AtomActivity extends FragmentActivity {
 		setContentView(R.layout.atom);
 		Button btnLoadMapCurrentLoc = (Button) findViewById(R.id.btn_load_map_current_loc);
 		Button btnMapRouting = (Button) findViewById(R.id.btn_load_map_routing);
+		Button btnBluetoothStart = (Button) findViewById(R.id.btn_load_bluetooth);
 
 		OnClickListener currentLocListener = new OnClickListener() {
 
@@ -41,12 +45,28 @@ public class AtomActivity extends FragmentActivity {
 				FragmentManager fragmentManager = getFragmentManager();
 				FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
 				MapRouting mapRouting = new MapRouting();
-				fragmentTransaction.add(R.id.map_fragment_container, mapRouting, "MAPSROUTIG");
+				fragmentTransaction.add(R.id.map_fragment_container, mapRouting, "MAPSROUTING");
 				fragmentTransaction.commit();
 			}
 			
 		};
 		btnMapRouting.setOnClickListener(routingListener);
+		
+		OnClickListener bluetoothListener = new OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				// TODO Auto-generated method stub
+				LinearLayout mainLinearLayout = (LinearLayout) findViewById(R.id.main_linear_layout);
+				mainLinearLayout.setVisibility(View.INVISIBLE);
+				FragmentManager fragmentManager = getFragmentManager();
+				FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+				BluetoothFragment bluetoothFragment = new BluetoothFragment();
+				fragmentTransaction.add(R.id.bluetooth_fragment_container, bluetoothFragment, "BLUETOOTH");
+				fragmentTransaction.commit();
+			}
+		};
+		btnBluetoothStart.setOnClickListener(bluetoothListener);
 	}
 
 	@Override

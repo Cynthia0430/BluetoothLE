@@ -111,7 +111,7 @@ public class MapRouting extends Fragment {
 					}
 					showRoutes(road);
 
-					Polyline roadOverlay = RoadManager.buildRoadOverlay(road, getActivity());
+					Polyline roadOverlay = RoadManager.buildRoadOverlay(road, getActivity());//what is PathOverlay
 					map.getOverlays().add(roadOverlay);
 				}
 			}
@@ -135,6 +135,7 @@ public class MapRouting extends Fragment {
 
 			private Drawable getManouverTypeIcon(RoadNode node) {
 				Drawable manouverIcon;
+				//try hashmap if too many items
 				switch(node.mManeuverType) {
 				case 0 : manouverIcon = getResources().getDrawable(R.drawable.ic_empty);
 				break;
