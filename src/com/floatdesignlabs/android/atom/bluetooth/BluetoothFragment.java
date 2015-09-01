@@ -22,6 +22,8 @@ import android.view.View;
 import android.view.View.OnKeyListener;
 import android.view.ViewGroup;
 import android.view.View.OnClickListener;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
@@ -104,6 +106,18 @@ public class BluetoothFragment extends Fragment {
 		bluetoothSearch.setOnClickListener(bluetoothSearchListener);
 		mPairedDeviceListView.setAdapter(mBluetoothPairedArrayAdapter);
 		mAvailableDeviceListView.setAdapter(mBluetoothAvailableArrayAdapter);
+		
+		mAvailableDeviceListView.setOnItemClickListener(new OnItemClickListener() {
+
+			@Override
+			public void onItemClick(AdapterView<?> arg0, View arg1, int arg2,
+					long arg3) {
+				// TODO Auto-generated method stub
+				Toast.makeText(getActivity(),"Click" ,
+						Toast.LENGTH_LONG).show();
+				//TODO implement pairing here
+			}
+		});
 
 		return rootView;
 
