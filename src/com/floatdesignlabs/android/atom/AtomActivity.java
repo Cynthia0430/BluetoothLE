@@ -83,46 +83,29 @@ public class AtomActivity extends FragmentActivity {
 		btnBluetoothStart.setOnClickListener(bluetoothListener);
 	}
 
-	private BroadcastReceiver mBluetoothStateChangedReceiver = new BroadcastReceiver() {
+	private BroadcastReceiver mBluetoothReceiver = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
-			final String action = intent.getAction();
-
-			if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
-				final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
-						BluetoothAdapter.ERROR);
-				updateBluetoothFragment(state);
-			}
+			updateBluetoothFragment(intent);
 		}
 	};
 
-	private BroadcastReceiver mBluetoothDiscoveryReceiver = new BroadcastReceiver() {
-		public void onReceive(Context context, Intent intent) {
-			String action = intent.getAction();
-
-			//Finding devices                 
-			if (BluetoothDevice.ACTION_FOUND.equals(action)) 
-			{
-				BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-				updateBluetoothFragmentAvailable(device, action);
-			}
-		}
-
-		private void updateBluetoothFragmentAvailable(BluetoothDevice device, String action) {
-			// TODO Auto-generated method stub
-			FragmentManager fragmentManager = getFragmentManager();
-			BluetoothFragment bluetoothFragment = (BluetoothFragment) fragmentManager.findFragmentByTag("BLUETOOTH");
-			bluetoothFragment.displayAvailableDevices(device);
-		}
-	};
-
-	private void updateBluetoothFragment(int state) {
+	private void updateBluetoothFragment(Intent intent) {
+		// TODO Auto-generated method stub
 		FragmentManager fragmentManager = getFragmentManager();
 		BluetoothFragment bluetoothFragment = (BluetoothFragment) fragmentManager.findFragmentByTag("BLUETOOTH");
-		if(state == BluetoothAdapter.STATE_ON) {
-			bluetoothFragment.displayPairedDevices();
-		} else if (state == BluetoothAdapter.STATE_OFF) {
-			bluetoothFragment.clearPairedDevices();
+		final String action = intent.getAction();
+		if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
+			final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
+					BluetoothAdapter.ERROR);
+			if(state == BluetoothAdapter.STATE_ON) {
+				bluetoothFragment.displayPairedDevices();
+			} else if (state == BluetoothAdapter.STATE_OFF) {
+				bluetoothFragment.clearPairedDevices();
+			}
+		} else if (action.equals(BluetoothDevice.ACTION_FOUND)) {
+			BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+			bluetoothFragment.displayAvailableDevices(device);
 		}
 	}
 
@@ -149,7 +132,7 @@ public class AtomActivity extends FragmentActivity {
 	protected void onDestroy() {
 		super.onDestroy();
 		//		if(mReceiver != null) {
-		mContext.unregisterReceiver(mBluetoothStateChangedReceiver);
+		mContext.unregisterReceiver(mBluetoothReceiver);
 		//			mReceiver = null;
 		//		}
 	}
@@ -157,11 +140,10 @@ public class AtomActivity extends FragmentActivity {
 	@Override
 	protected void onResume() {
 		super.onResume();
-		IntentFilter bluetoothStateChangedFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
-		bluetoothStateChangedFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-		mContext.registerReceiver(mBluetoothStateChangedReceiver, bluetoothStateChangedFilter);
-		IntentFilter bluetoothDiscoveryFilter = new IntentFilter(BluetoothDevice.ACTION_FOUND); 
-		mContext.registerReceiver(mBluetoothDiscoveryReceiver, bluetoothDiscoveryFilter);
+		IntentFilter bluetoothFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+		bluetoothFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+		bluetoothFilter.addAction(BluetoothDevice.ACTION_FOUND);
+		mContext.registerReceiver(mBluetoothReceiver, bluetoothFilter);
 	}
 
 	@Override

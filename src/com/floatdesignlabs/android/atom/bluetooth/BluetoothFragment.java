@@ -94,6 +94,9 @@ public class BluetoothFragment extends Fragment {
 			@Override
 			public void onClick(View v) {
 				// TODO Auto-generated method stub
+				if (mAtomActivity.getBluetoothAdapter().isDiscovering()) {
+					mAtomActivity.getBluetoothAdapter().cancelDiscovery();
+				}
 				clearAvailableDevices();
 				mAtomActivity.getBluetoothAdapter().startDiscovery();
 			}
