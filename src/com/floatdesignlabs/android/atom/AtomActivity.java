@@ -19,12 +19,14 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 
 
 public class AtomActivity extends FragmentActivity {
 
 	private static Context mContext;
 	private static BluetoothAdapter mBluetoothAdapter;
+	private static String BLUETOOTH_TAG = "BLUETOOTH";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -75,8 +77,8 @@ public class AtomActivity extends FragmentActivity {
 				FragmentManager fragmentManager = getFragmentManager();
 				FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
 				BluetoothFragment bluetoothFragment = new BluetoothFragment();
-				fragmentTransaction.add(R.id.bluetooth_fragment_container, bluetoothFragment, "BLUETOOTH");
-				fragmentTransaction.addToBackStack("BLUETOOTH");
+				fragmentTransaction.add(R.id.bluetooth_fragment_container, bluetoothFragment, BLUETOOTH_TAG);
+				fragmentTransaction.addToBackStack(BLUETOOTH_TAG);
 				fragmentTransaction.commit();
 			}
 		};
@@ -93,19 +95,52 @@ public class AtomActivity extends FragmentActivity {
 	private void updateBluetoothFragment(Intent intent) {
 		// TODO Auto-generated method stub
 		FragmentManager fragmentManager = getFragmentManager();
-		BluetoothFragment bluetoothFragment = (BluetoothFragment) fragmentManager.findFragmentByTag("BLUETOOTH");
+		BluetoothFragment bluetoothFragment = (BluetoothFragment) fragmentManager.findFragmentByTag(BLUETOOTH_TAG);
 		final String action = intent.getAction();
-		if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
+		BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+		switch(action) {
+		case BluetoothAdapter.ACTION_STATE_CHANGED : 
 			final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
 					BluetoothAdapter.ERROR);
 			if(state == BluetoothAdapter.STATE_ON) {
 				bluetoothFragment.displayPairedDevices();
 			} else if (state == BluetoothAdapter.STATE_OFF) {
 				bluetoothFragment.clearPairedDevices();
+				bluetoothFragment.clearAvailableDevices();
 			}
-		} else if (action.equals(BluetoothDevice.ACTION_FOUND)) {
-			BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-			bluetoothFragment.displayAvailableDevices(device);
+			break;
+		case BluetoothDevice.ACTION_FOUND : 
+			if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
+				bluetoothFragment.addDeviceAndDisplayAvailableDevices(device);
+			}
+			break;
+		case BluetoothAdapter.ACTION_DISCOVERY_STARTED : 
+			// Discovery has started, display progress spinner
+			setProgressBarIndeterminateVisibility(true);
+			break;
+		case BluetoothAdapter.ACTION_DISCOVERY_FINISHED : 
+			// Discovery has ended, hide progress spinner
+			setProgressBarIndeterminateVisibility(false);
+			break;
+		case BluetoothDevice.ACTION_BOND_STATE_CHANGED :
+			final int bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, 0);
+			switch(bondState) {
+
+			case BluetoothDevice.BOND_BONDED :
+				bluetoothFragment.displayPairedDevices();
+				bluetoothFragment.removeDeviceAndDisplayAvailableDevices(device);
+				Toast.makeText(this,"Paired" ,
+						Toast.LENGTH_LONG).show();
+			case BluetoothDevice.BOND_NONE : 
+				bluetoothFragment.clearPairedDevices();
+				bluetoothFragment.displayPairedDevices();
+				Toast.makeText(this,"Unpaired" ,
+						Toast.LENGTH_LONG).show();
+				if(mBluetoothAdapter.isDiscovering()) {
+					mBluetoothAdapter.cancelDiscovery();
+				}
+				mBluetoothAdapter.startDiscovery();
+			}
 		}
 	}
 
@@ -132,6 +167,7 @@ public class AtomActivity extends FragmentActivity {
 	protected void onDestroy() {
 		super.onDestroy();
 		//		if(mReceiver != null) {
+		mBluetoothAdapter.cancelDiscovery();
 		mContext.unregisterReceiver(mBluetoothReceiver);
 		//			mReceiver = null;
 		//		}
@@ -140,9 +176,19 @@ public class AtomActivity extends FragmentActivity {
 	@Override
 	protected void onResume() {
 		super.onResume();
+		if(mBluetoothAdapter.isEnabled()) {
+			FragmentManager fragmentManager = getFragmentManager();
+			BluetoothFragment bluetoothFragment = (BluetoothFragment) fragmentManager.findFragmentByTag(BLUETOOTH_TAG);
+			if(bluetoothFragment != null && bluetoothFragment.isVisible()) {
+				bluetoothFragment.displayPairedDevices();
+			}
+		}
 		IntentFilter bluetoothFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
 		bluetoothFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
 		bluetoothFilter.addAction(BluetoothDevice.ACTION_FOUND);
+		bluetoothFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
+		bluetoothFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+		bluetoothFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
 		mContext.registerReceiver(mBluetoothReceiver, bluetoothFilter);
 	}
 
