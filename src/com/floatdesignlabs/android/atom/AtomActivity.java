@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import com.floatdesignlabs.android.atom.bluetooth.BluetoothFragment;
 
+import android.app.Activity;
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
 import android.bluetooth.BluetoothAdapter;
@@ -13,7 +14,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
-import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -24,7 +24,7 @@ import android.widget.LinearLayout;
 import android.widget.Toast;
 
 
-public class AtomActivity extends FragmentActivity {
+public class AtomActivity extends Activity {
 
 	private static Context mContext;
 	private static BluetoothAdapter mBluetoothAdapter;
