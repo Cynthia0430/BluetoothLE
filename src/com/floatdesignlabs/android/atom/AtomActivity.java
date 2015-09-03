@@ -1,5 +1,7 @@
 package com.floatdesignlabs.android.atom;
 
+import java.util.UUID;
+
 import com.floatdesignlabs.android.atom.bluetooth.BluetoothFragment;
 
 import android.app.FragmentManager;
@@ -27,6 +29,7 @@ public class AtomActivity extends FragmentActivity {
 	private static Context mContext;
 	private static BluetoothAdapter mBluetoothAdapter;
 	private static String BLUETOOTH_TAG = "BLUETOOTH";
+	public static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -205,5 +208,9 @@ public class AtomActivity extends FragmentActivity {
 
 	public BluetoothAdapter getBluetoothAdapter() {
 		return mBluetoothAdapter;
+	}
+	
+	public UUID getMyUUID() {
+		return MY_UUID;
 	}
 }
