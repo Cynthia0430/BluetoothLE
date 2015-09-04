@@ -170,10 +170,13 @@ public class BluetoothFragment extends Fragment {
 						new DialogInterface.OnClickListener() {
 					public void onClick(DialogInterface dialog, int id) {
 						BluetoothDevice bluetoothDevice = mBluetoothPairedArrayList.get(devicePosition);
-						Boolean isRemoved = doRemove(bluetoothDevice);
+						/*Boolean isRemoved = doRemove(bluetoothDevice);
 						if(isRemoved) {
 							Log.d(TAG, "removeBond called successfully");
-						}
+						}*/
+						ConnectThread connect = new ConnectThread(bluetoothDevice);
+						connect.start();
+						
 					}
 				});
 				builder.setNegativeButton("Cancel",
@@ -413,16 +416,19 @@ public class BluetoothFragment extends Fragment {
 			super.handleMessage(msg);
 			switch(msg.what){
 			case SUCCESS_CONNECT:
-				// DO something
 				ConnectedThread connectedThread = new ConnectedThread((BluetoothSocket)msg.obj);
 				Toast.makeText(getActivity(), "CONNECT", 0).show();
-				String s = "successfully connected";
+				String s = "s ";
+				connectedThread.start();
+				for(int i = 0; i < 10; i++) {
 				connectedThread.write(s.getBytes());
+				}
 				break;
 			case MESSAGE_READ:
 				byte[] readBuf = (byte[])msg.obj;
 				String string = new String(readBuf);
 				Toast.makeText(getActivity(), string, 0).show();
+				Log.d(TAG, "Bluetooth Received: " + string);
 				break;
 			}
 		}
