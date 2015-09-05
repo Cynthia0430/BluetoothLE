@@ -44,6 +44,8 @@ public class BluetoothFragment extends Fragment {
 	ArrayList<BluetoothDevice> mBluetoothPairedArrayList;
 	protected static final int SUCCESS_CONNECT = 0;
 	protected static final int MESSAGE_READ = 1;
+	ConnectThread mConnectThread;
+	ConnectedThread mConnectedThread;
 	String TAG = "FLOAT";
 
 	@Override
@@ -174,9 +176,7 @@ public class BluetoothFragment extends Fragment {
 						if(isRemoved) {
 							Log.d(TAG, "removeBond called successfully");
 						}*/
-						ConnectThread connect = new ConnectThread(bluetoothDevice);
-						connect.start();
-						
+						doConnectDevice(bluetoothDevice);
 					}
 				});
 				builder.setNegativeButton("Cancel",
@@ -193,6 +193,19 @@ public class BluetoothFragment extends Fragment {
 		});
 
 		return rootView;
+	}
+	
+	private void doConnectDevice(BluetoothDevice bluetoothDevice) {
+		if(mConnectThread != null) {
+			mConnectThread.cancel();
+			mConnectThread = null;
+		}
+		if(mConnectedThread != null) {
+			mConnectedThread.cancel();
+			mConnectedThread = null;
+		}
+		mConnectThread = new ConnectThread(bluetoothDevice, mHandler);
+		mConnectThread.start();
 	}
 
 	private Boolean doPairing(BluetoothDevice bluetoothDevice) {
@@ -259,7 +272,7 @@ public class BluetoothFragment extends Fragment {
 		mBluetoothAvailableArrayAdapter.notifyDataSetChanged();
 	}
 
-	private class ConnectThread extends Thread {
+	/*private class ConnectThread extends Thread {
 
 		private final BluetoothSocket mmSocket;
 		private final BluetoothDevice mmDevice;
@@ -298,15 +311,15 @@ public class BluetoothFragment extends Fragment {
 
 			mHandler.obtainMessage(SUCCESS_CONNECT, mmSocket).sendToTarget();
 		}
-		/** Will cancel an in-progress connection, and close the socket */
+		*//** Will cancel an in-progress connection, and close the socket *//*
 		public void cancel() {
 			try {
 				mmSocket.close();
 			} catch (IOException e) { }
 		}
-	}
+	}*/
 
-	private class ConnectedThread extends Thread {
+	/*private class ConnectedThread extends Thread {
 		private final BluetoothSocket mmSocket;
 		private final InputStream mmInStream;
 		private final OutputStream mmOutStream;
@@ -340,27 +353,26 @@ public class BluetoothFragment extends Fragment {
 					// Send the obtained bytes to the UI activity
 					mHandler.obtainMessage(MESSAGE_READ, bytes, -1, buffer)
 					.sendToTarget();
-
 				} catch (IOException e) {
 					break;
 				}
 			}
 		}
 
-		/* Call this from the main activity to send data to the remote device */
+		 Call this from the main activity to send data to the remote device 
 		public void write(byte[] bytes) {
 			try {
 				mmOutStream.write(bytes);
 			} catch (IOException e) { }
 		}
 
-		/* Call this from the main activity to shutdown the connection */
+		 Call this from the main activity to shutdown the connection 
 		public void cancel() {
 			try {
 				mmSocket.close();
 			} catch (IOException e) { }
 		}
-	}
+	}*/
 
 	private class AcceptThread extends Thread {
 		private AtomActivity mAtomActivity = new AtomActivity();
@@ -416,21 +428,39 @@ public class BluetoothFragment extends Fragment {
 			super.handleMessage(msg);
 			switch(msg.what){
 			case SUCCESS_CONNECT:
-				ConnectedThread connectedThread = new ConnectedThread((BluetoothSocket)msg.obj);
-				Toast.makeText(getActivity(), "CONNECT", 0).show();
-				String s = "s ";
-				connectedThread.start();
+				if(mConnectedThread != null) {
+					mConnectedThread.cancel();
+					mConnectedThread = null;
+				}
+				mConnectedThread = new ConnectedThread((BluetoothSocket)msg.obj, mHandler);
+				Toast.makeText(getActivity(), "CONNECT", Toast.LENGTH_SHORT).show();
+				String s = "successfully connected ";
+				mConnectedThread.start();
 				for(int i = 0; i < 10; i++) {
-				connectedThread.write(s.getBytes());
+					mConnectedThread.write(s.getBytes());
 				}
 				break;
 			case MESSAGE_READ:
 				byte[] readBuf = (byte[])msg.obj;
 				String string = new String(readBuf);
-				Toast.makeText(getActivity(), string, 0).show();
+				if(!mAtomActivity.getBluetoothAdapter().isEnabled()) {
+					if(mConnectedThread != null) {
+						mConnectedThread.cancel();
+						mConnectedThread = null;
+					}
+					Log.d(TAG, "00-> Bluetooth returned");
+					return;
+				}
+				Toast.makeText(getActivity(), string, Toast.LENGTH_SHORT).show();
 				Log.d(TAG, "Bluetooth Received: " + string);
 				break;
 			}
 		}
 	};
+
+	@Override
+	public void onDestroy() {
+		super.onDestroy();
+		mHandler.removeCallbacksAndMessages(null);
+	}
 }
