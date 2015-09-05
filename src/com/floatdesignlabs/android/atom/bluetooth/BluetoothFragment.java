@@ -3,6 +3,7 @@ package com.floatdesignlabs.android.atom.bluetooth;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Set;
@@ -421,7 +422,8 @@ public class BluetoothFragment extends Fragment {
 		}
 	}
 
-	Handler mHandler = new Handler(){
+	MyBluetoothHandler mHandler = new MyBluetoothHandler(this);
+	/*{
 		@Override
 		public void handleMessage(Message msg) {
 			// TODO Auto-generated method stub
@@ -456,11 +458,55 @@ public class BluetoothFragment extends Fragment {
 				break;
 			}
 		}
-	};
+	};*/
 
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
 		mHandler.removeCallbacksAndMessages(null);
 	}
+	
+	static class MyBluetoothHandler extends Handler{
+        WeakReference<BluetoothFragment> mFragment;
+
+        MyBluetoothHandler(BluetoothFragment aFragment) {
+            mFragment = new WeakReference<BluetoothFragment>(aFragment);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+        	super.handleMessage(msg);
+            BluetoothFragment fragment = mFragment.get();
+            switch(msg.what){
+			case SUCCESS_CONNECT:
+				if(fragment.mConnectedThread != null) {
+					fragment.mConnectedThread.cancel();
+					fragment.mConnectedThread = null;
+				}
+				fragment.mConnectedThread = new ConnectedThread((BluetoothSocket)msg.obj, fragment.mHandler);
+				Toast.makeText(fragment.getActivity(), "CONNECT", Toast.LENGTH_SHORT).show();
+				String s = "successfully connected ";
+				fragment.mConnectedThread.start();
+				for(int i = 0; i < 10; i++) {
+					fragment.mConnectedThread.write(s.getBytes());
+				}
+				break;
+			case MESSAGE_READ:
+				byte[] readBuf = (byte[])msg.obj;
+				String string = new String(readBuf);
+				if(!fragment.mAtomActivity.getBluetoothAdapter().isEnabled()) {
+					if(fragment.mConnectedThread != null) {
+						fragment.mConnectedThread.cancel();
+						fragment.mConnectedThread = null;
+					}
+					Log.d(fragment.TAG, "00-> Bluetooth returned");
+					return;
+				}
+				Toast.makeText(fragment.getActivity(), string, Toast.LENGTH_SHORT).show();
+				Log.d(fragment.TAG, "Bluetooth Received: " + string);
+				break;
+			}
+            
+        }
+    }
 }
