@@ -1,27 +1,27 @@
 package com.floatdesignlabs.android.atom.bluetooth;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.lang.ref.WeakReference;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Set;
 
 import com.floatdesignlabs.android.atom.AtomActivity;
 import com.floatdesignlabs.android.atom.R;
 
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.Fragment;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothServerSocket;
-import android.bluetooth.BluetoothSocket;
+import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothProfile;
+import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanResult;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Message;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -36,6 +36,7 @@ import android.widget.Toast;
 
 public class BluetoothFragment extends Fragment {
 
+	private BluetoothGatt mBluetoothGatt = null;
 	private ArrayAdapter<String> mBluetoothPairedArrayAdapter;
 	private ArrayAdapter<String> mBluetoothAvailableArrayAdapter;
 	private AtomActivity mAtomActivity = new AtomActivity();
@@ -45,8 +46,8 @@ public class BluetoothFragment extends Fragment {
 	ArrayList<BluetoothDevice> mBluetoothPairedArrayList;
 	protected static final int SUCCESS_CONNECT = 0;
 	protected static final int MESSAGE_READ = 1;
-	ConnectThread mConnectThread;
-	ConnectedThread mConnectedThread;
+	private Handler mHandler = new Handler();
+	private static final long SCAN_PERIOD = 10000;
 	String TAG = "FLOAT";
 
 	@Override
@@ -70,9 +71,9 @@ public class BluetoothFragment extends Fragment {
 		}
 
 		if(mAtomActivity.getBluetoothAdapter().isEnabled()) {
-			displayPairedDevices();
+			clearAvailableDevices();
 		} else {
-			clearPairedDevices();
+
 		}
 		OnClickListener bluetoothOnListener = new OnClickListener() {
 
@@ -101,6 +102,7 @@ public class BluetoothFragment extends Fragment {
 				mAtomActivity.getBluetoothAdapter().disable();
 				Toast.makeText(getActivity(),"Bluetooth turned off" ,
 						Toast.LENGTH_LONG).show();
+				clearAvailableDevices();
 			}
 		};
 		bluetoothOff.setOnClickListener(bluetoothOffListener);
@@ -110,11 +112,9 @@ public class BluetoothFragment extends Fragment {
 			@Override
 			public void onClick(View v) {
 				// TODO Auto-generated method stub
-				if (mAtomActivity.getBluetoothAdapter().isDiscovering()) {
-					mAtomActivity.getBluetoothAdapter().cancelDiscovery();
+				if(mAtomActivity.getBluetoothAdapter().isEnabled()) {
+					startBluetoothLEScan();
 				}
-				clearAvailableDevices();
-				mAtomActivity.getBluetoothAdapter().startDiscovery();
 			}
 		};
 		bluetoothSearch.setOnClickListener(bluetoothSearchListener);
@@ -136,14 +136,9 @@ public class BluetoothFragment extends Fragment {
 				builder.setPositiveButton("Ok",
 						new DialogInterface.OnClickListener() {
 					public void onClick(DialogInterface dialog, int id) {
-						if (mAtomActivity.getBluetoothAdapter().isDiscovering()) {
-							mAtomActivity.getBluetoothAdapter().cancelDiscovery();
-						}
 						BluetoothDevice bluetoothDevice = mBluetoothAvailableArrayList.get(devicePosition);
-						Boolean isPaired = doPairing(bluetoothDevice);
-						if(isPaired) {
-							//mBluetoothPairedArrayAdapter.add(bluetoothDevice.getName() + "\n" + bluetoothDevice.getAddress());
-							Log.d(TAG, "createBond called successfully");
+						if(bluetoothDevice != null) {
+							connect(bluetoothDevice);
 						}
 					}
 				});
@@ -173,11 +168,6 @@ public class BluetoothFragment extends Fragment {
 						new DialogInterface.OnClickListener() {
 					public void onClick(DialogInterface dialog, int id) {
 						BluetoothDevice bluetoothDevice = mBluetoothPairedArrayList.get(devicePosition);
-						/*Boolean isRemoved = doRemove(bluetoothDevice);
-						if(isRemoved) {
-							Log.d(TAG, "removeBond called successfully");
-						}*/
-						doConnectDevice(bluetoothDevice);
 					}
 				});
 				builder.setNegativeButton("Cancel",
@@ -195,44 +185,124 @@ public class BluetoothFragment extends Fragment {
 
 		return rootView;
 	}
-	
-	private void doConnectDevice(BluetoothDevice bluetoothDevice) {
-		if(mConnectThread != null) {
-			mConnectThread.cancel();
-			mConnectThread = null;
-		}
-		if(mConnectedThread != null) {
-			mConnectedThread.cancel();
-			mConnectedThread = null;
-		}
-		mConnectThread = new ConnectThread(bluetoothDevice, mHandler);
-		mConnectThread.start();
-	}
 
-	private Boolean doPairing(BluetoothDevice bluetoothDevice) {
-		// TODO Auto-generated method stub
-		try {
-			Class<?> class1 = Class.forName("android.bluetooth.BluetoothDevice");
-			Method createBondMethod = class1.getMethod("createBond");  
-			Boolean returnValue = (Boolean) createBondMethod.invoke(bluetoothDevice);  
-			return returnValue.booleanValue();
-		} catch (Exception e) {
-			e.printStackTrace();
-			return false;
+	@SuppressLint("NewApi")
+	public void startBluetoothLEScan() {
+		int apiVersion = android.os.Build.VERSION.SDK_INT;
+		if (apiVersion > android.os.Build.VERSION_CODES.KITKAT){
+			final BluetoothLeScanner scanner = mAtomActivity.getBluetoothAdapter().getBluetoothLeScanner();
+			mHandler.postDelayed(new Runnable() {
+				@Override
+				public void run() {
+					scanner.stopScan(mLeScannerCallback); 
+				}
+			}, SCAN_PERIOD);
+			scanner.startScan(mLeScannerCallback);
+		} else {
+			mHandler.postDelayed(new Runnable() {
+				@Override
+				public void run() {
+					mAtomActivity.getBluetoothAdapter().startLeScan(mLeScanCallback);
+				}
+			}, SCAN_PERIOD);
+			mAtomActivity.getBluetoothAdapter().stopLeScan(mLeScanCallback);
 		}
 	}
 
-	private Boolean doRemove(BluetoothDevice bluetoothDevice) {
-		try {
-			Class<?> class1 = Class.forName("android.bluetooth.BluetoothDevice");
-			Method removeBondMethod = class1.getMethod("removeBond");  
-			Boolean returnValue = (Boolean) removeBondMethod.invoke(bluetoothDevice);  
-			return returnValue.booleanValue();
-		} catch (Exception e) {
-			e.printStackTrace();
+	@SuppressLint("NewApi")
+	private BluetoothAdapter.LeScanCallback mLeScanCallback =
+	new BluetoothAdapter.LeScanCallback() {
+		@Override
+		public void onLeScan(final BluetoothDevice device, int rssi,
+				byte[] scanRecord) {
+			getActivity().runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					clearAvailableDevices();
+					addDeviceAndDisplayAvailableDevices(device);
+				}
+			});
+		}
+	};
+
+	@SuppressLint("NewApi")
+	private ScanCallback mLeScannerCallback = new ScanCallback() {
+		@Override
+		public void onScanResult(int callback, ScanResult result) {
+			final BluetoothDevice device = result.getDevice();
+			getActivity().runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					clearAvailableDevices();
+					addDeviceAndDisplayAvailableDevices(device);
+				}
+			});
+		}
+	};
+
+	@SuppressLint("NewApi")
+	public boolean connect(final BluetoothDevice device) {
+		if (device == null) {
 			return false;
 		}
+		if (mAtomActivity.getBluetoothAdapter() == null || device.getAddress() == null) return false;
+
+		// check if we need to connect from scratch or just reconnect to previous device
+		if(mBluetoothGatt != null && mBluetoothGatt.getDevice().getAddress().equals(device.getAddress())) {
+			// just reconnect
+			return mBluetoothGatt.connect();
+		}
+		else {
+			// connect from scratch
+			// get BluetoothDevice object for specified address
+
+			// connect with remote device
+			mBluetoothGatt = device.connectGatt(getActivity(), false, mBleGattConnectCallback);
+		}
+		return true;
 	}
+
+	@SuppressLint("NewApi")
+	private final BluetoothGattCallback mBleGattConnectCallback = new BluetoothGattCallback() {
+		@Override
+		public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+			if (newState == BluetoothProfile.STATE_CONNECTED) {
+				Toast.makeText(getActivity(), "BLE Connected", Toast.LENGTH_SHORT).show();
+			} else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+				Toast.makeText(getActivity(), "BLE Disonnected", Toast.LENGTH_SHORT).show();
+			}
+		}
+
+		@Override
+		public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+
+		}
+
+		@Override
+		public void onCharacteristicRead(BluetoothGatt gatt,
+				BluetoothGattCharacteristic characteristic,
+				int status)
+		{
+
+		}
+
+		@Override
+		public void onCharacteristicChanged(BluetoothGatt gatt,
+				BluetoothGattCharacteristic characteristic)
+		{
+
+		}
+
+		@Override
+		public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+
+		}
+
+		@Override
+		public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
+
+		};
+	};
 
 	public void clearPairedDevices() {
 		// TODO Auto-generated method stub
@@ -262,6 +332,7 @@ public class BluetoothFragment extends Fragment {
 	}
 
 	public void addDeviceAndDisplayAvailableDevices(BluetoothDevice device) {
+		Log.d(TAG, "display available devices, device: " + device);
 		mBluetoothAvailableArrayAdapter.add(device.getName() + "\n" + device.getAddress());
 		mBluetoothAvailableArrayList.add(device);
 		mBluetoothAvailableArrayAdapter.notifyDataSetChanged();
@@ -273,240 +344,18 @@ public class BluetoothFragment extends Fragment {
 		mBluetoothAvailableArrayAdapter.notifyDataSetChanged();
 	}
 
-	/*private class ConnectThread extends Thread {
-
-		private final BluetoothSocket mmSocket;
-		private final BluetoothDevice mmDevice;
-
-		public ConnectThread(BluetoothDevice device) {
-			// Use a temporary object that is later assigned to mmSocket,
-			// because mmSocket is final
-			BluetoothSocket tmp = null;
-			mmDevice = device;
-			// Get a BluetoothSocket to connect with the given BluetoothDevice
-			try {
-				// MY_UUID is the app's UUID string, also used by the server code
-				tmp = device.createRfcommSocketToServiceRecord(mAtomActivity.getMyUUID());
-			} catch (IOException e) { 
-
-			}
-			mmSocket = tmp;
-		}
-
-		public void run() {
-			// Cancel discovery because it will slow down the connection
-			mAtomActivity.getBluetoothAdapter().cancelDiscovery();
-			try {
-				// Connect the device through the socket. This will block
-				// until it succeeds or throws an exception
-				mmSocket.connect();
-			} catch (IOException connectException) {	
-				// Unable to connect; close the socket and get out
-				try {
-					mmSocket.close();
-				} catch (IOException closeException) { }
-				return;
-			}
-
-			// Do work to manage the connection (in a separate thread)
-
-			mHandler.obtainMessage(SUCCESS_CONNECT, mmSocket).sendToTarget();
-		}
-		*//** Will cancel an in-progress connection, and close the socket *//*
-		public void cancel() {
-			try {
-				mmSocket.close();
-			} catch (IOException e) { }
-		}
-	}*/
-
-	/*private class ConnectedThread extends Thread {
-		private final BluetoothSocket mmSocket;
-		private final InputStream mmInStream;
-		private final OutputStream mmOutStream;
-
-		public ConnectedThread(BluetoothSocket socket) {
-			mmSocket = socket;
-			InputStream tmpIn = null;
-			OutputStream tmpOut = null;
-
-			// Get the input and output streams, using temp objects because
-			// member streams are final
-			try {
-				tmpIn = socket.getInputStream();
-				tmpOut = socket.getOutputStream();
-			} catch (IOException e) { }
-
-			mmInStream = tmpIn;
-			mmOutStream = tmpOut;
-		}
-
-		public void run() {
-			byte[] buffer;  // buffer store for the stream
-			int bytes; // bytes returned from read()
-
-			// Keep listening to the InputStream until an exception occurs
-			while (true) {
-				try {
-					// Read from the InputStream
-					buffer = new byte[1024];
-					bytes = mmInStream.read(buffer);
-					// Send the obtained bytes to the UI activity
-					mHandler.obtainMessage(MESSAGE_READ, bytes, -1, buffer)
-					.sendToTarget();
-				} catch (IOException e) {
-					break;
-				}
-			}
-		}
-
-		 Call this from the main activity to send data to the remote device 
-		public void write(byte[] bytes) {
-			try {
-				mmOutStream.write(bytes);
-			} catch (IOException e) { }
-		}
-
-		 Call this from the main activity to shutdown the connection 
-		public void cancel() {
-			try {
-				mmSocket.close();
-			} catch (IOException e) { }
-		}
-	}*/
-
-	private class AcceptThread extends Thread {
-		private AtomActivity mAtomActivity = new AtomActivity();
-		private final BluetoothServerSocket mmServerSocket;
-
-		public AcceptThread() {
-			// Use a temporary object that is later assigned to mmServerSocket,
-			// because mmServerSocket is final
-			BluetoothServerSocket tmp = null;
-			try {
-				// MY_UUID is the app's UUID string, also used by the client code
-				tmp = mAtomActivity.getBluetoothAdapter().listenUsingRfcommWithServiceRecord("Atom", mAtomActivity.getMyUUID());
-			} catch (IOException e) { }
-			mmServerSocket = tmp;
-		}
-
-		public void run() {
-			BluetoothSocket socket = null;
-			// Keep listening until exception occurs or a socket is returned
-			while (true) {
-				try {
-					socket = mmServerSocket.accept();
-				} catch (IOException e) {
-					break;
-				}
-				// If a connection was accepted
-				if (socket != null) {
-					// Do work to manage the connection (in a separate thread)
-					//	                manageConnectedSocket(socket);
-					try {
-						mmServerSocket.close();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-					break;
-				}
-			}
-		}
-
-		/** Will cancel the listening socket, and cause the thread to finish */
-		public void cancel() {
-			try {
-				mmServerSocket.close();
-			} catch (IOException e) { }
-		}
-	}
-
-	MyBluetoothHandler mHandler = new MyBluetoothHandler(this);
-	/*{
-		@Override
-		public void handleMessage(Message msg) {
-			// TODO Auto-generated method stub
-			super.handleMessage(msg);
-			switch(msg.what){
-			case SUCCESS_CONNECT:
-				if(mConnectedThread != null) {
-					mConnectedThread.cancel();
-					mConnectedThread = null;
-				}
-				mConnectedThread = new ConnectedThread((BluetoothSocket)msg.obj, mHandler);
-				Toast.makeText(getActivity(), "CONNECT", Toast.LENGTH_SHORT).show();
-				String s = "successfully connected ";
-				mConnectedThread.start();
-				for(int i = 0; i < 10; i++) {
-					mConnectedThread.write(s.getBytes());
-				}
-				break;
-			case MESSAGE_READ:
-				byte[] readBuf = (byte[])msg.obj;
-				String string = new String(readBuf);
-				if(!mAtomActivity.getBluetoothAdapter().isEnabled()) {
-					if(mConnectedThread != null) {
-						mConnectedThread.cancel();
-						mConnectedThread = null;
-					}
-					Log.d(TAG, "00-> Bluetooth returned");
-					return;
-				}
-				Toast.makeText(getActivity(), string, Toast.LENGTH_SHORT).show();
-				Log.d(TAG, "Bluetooth Received: " + string);
-				break;
-			}
-		}
-	};*/
-
+	@SuppressLint("NewApi")
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
-		mHandler.removeCallbacksAndMessages(null);
+		if(mBluetoothGatt != null) mBluetoothGatt.disconnect();
 	}
-	
-	static class MyBluetoothHandler extends Handler{
-        WeakReference<BluetoothFragment> mFragment;
 
-        MyBluetoothHandler(BluetoothFragment aFragment) {
-            mFragment = new WeakReference<BluetoothFragment>(aFragment);
-        }
+	@SuppressLint("NewApi")
+	@Override
+	public void onPause() {
+		super.onPause();
+		if(mBluetoothGatt != null) mBluetoothGatt.disconnect();
+	}
 
-        @Override
-        public void handleMessage(Message msg) {
-        	super.handleMessage(msg);
-            BluetoothFragment fragment = mFragment.get();
-            switch(msg.what){
-			case SUCCESS_CONNECT:
-				if(fragment.mConnectedThread != null) {
-					fragment.mConnectedThread.cancel();
-					fragment.mConnectedThread = null;
-				}
-				fragment.mConnectedThread = new ConnectedThread((BluetoothSocket)msg.obj, fragment.mHandler);
-				Toast.makeText(fragment.getActivity(), "CONNECT", Toast.LENGTH_SHORT).show();
-				String s = "successfully connected ";
-				fragment.mConnectedThread.start();
-				for(int i = 0; i < 10; i++) {
-					fragment.mConnectedThread.write(s.getBytes());
-				}
-				break;
-			case MESSAGE_READ:
-				byte[] readBuf = (byte[])msg.obj;
-				String string = new String(readBuf);
-				if(!fragment.mAtomActivity.getBluetoothAdapter().isEnabled()) {
-					if(fragment.mConnectedThread != null) {
-						fragment.mConnectedThread.cancel();
-						fragment.mConnectedThread = null;
-					}
-					Log.d(fragment.TAG, "00-> Bluetooth returned");
-					return;
-				}
-				Toast.makeText(fragment.getActivity(), string, Toast.LENGTH_SHORT).show();
-				Log.d(fragment.TAG, "Bluetooth Received: " + string);
-				break;
-			}
-            
-        }
-    }
 }
