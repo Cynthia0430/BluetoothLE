@@ -3,6 +3,7 @@ package com.floatdesignlabs.android.atom.bluetooth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import com.floatdesignlabs.android.atom.AtomActivity;
 import com.floatdesignlabs.android.atom.R;
@@ -289,12 +290,19 @@ public class BluetoothFragment extends Fragment {
 		@Override
 		public void onServicesDiscovered(BluetoothGatt gatt, int status) {
 			List<BluetoothGattService> bluetoothGattServices = null;
+			List<BluetoothGattCharacteristic> bluetoothGattChars = null;
 			if(status == BluetoothGatt.GATT_SUCCESS) {
 				if(mBluetoothGatt != null) 
 					bluetoothGattServices = mBluetoothGatt.getServices();
 				for(BluetoothGattService service : bluetoothGattServices) {
-					String sericeName = BleNamesResolver.resolveUuid(service.getUuid().toString());
-					Log.d(TAG, "BluetoothGattService: " + sericeName);
+					String serviceName = BleNamesResolver.resolveUuid(service.getUuid().toString());
+					bluetoothGattChars = service.getCharacteristics();
+					for(BluetoothGattCharacteristic characteristic : bluetoothGattChars) {
+						String characteristicName = BleNamesResolver.resolveCharacteristicName(characteristic.getUuid().toString());
+						Log.d(TAG, "BluetoothGatt BluetoothGattService: " + serviceName + "BluetoothGattCharacteristic: " + characteristicName + "UUID: " + characteristic.getUuid().toString());
+					}
+					
+					Log.d(TAG, "BluetoothGatt BluetoothGattService: " + serviceName + "UUID: " + service.getUuid().toString());
 				}
 			}
 		}
