@@ -8,50 +8,56 @@
         android:layout_height="match_parent"
         android:orientation="vertical" >
 
-        <Button
-            android:id="@+id/btn_bluetooth_on"
-            android:layout_width="match_parent"
+        <LinearLayout
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Turn On" />
+            android:orientation="horizontal" >
 
-        <Button
-            android:id="@+id/btn_bluetooth_off"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Turn Off" />
+            <Button
+                android:id="@+id/btn_bluetooth_on"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Turn On" />
 
-        <TextView 
+            <Button
+                android:id="@+id/btn_bluetooth_off"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Turn Off" />
+        </LinearLayout>
+
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Paired"
+            android:textColor="#FF669900"
             android:textSize="18dp"
-            android:textColor="#FF669900"/>
-        
+            android:visibility="invisible" />
+
         <ListView
             android:id="@+id/paired_device_list"
             android:layout_width="match_parent"
             android:layout_height="wrap_content" >
         </ListView>
-        
+
         <Button
             android:id="@+id/btn_bluetooth_search"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Search" />
-        
-         <TextView 
+
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Available"
-            android:textSize="18dp"
-            android:textColor="#FF669900"/>
-         
+            android:text="Available Devices"
+            android:textColor="#FF669900"
+            android:textSize="18dp" />
+
         <ListView
             android:id="@+id/available_device_list"
             android:layout_width="match_parent"
             android:layout_height="wrap_content" >
         </ListView>
-        
     </LinearLayout>
-    
+
 </RelativeLayout>

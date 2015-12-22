@@ -1,12 +1,11 @@
-package com.floatdesignlabs.android.atom.bluetooth;
+package com.android.bluetooth.le.sample.fragments;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
-
-import com.floatdesignlabs.android.atom.AtomActivity;
-import com.floatdesignlabs.android.atom.R;
+import com.android.bluetooth.le.sample.BluetoothLEActivity;
+import com.android.bluetooth.le.sample.R;
+import com.android.bluetooth.le.sample.utils.BleNamesResolver;
 
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
@@ -18,7 +17,6 @@ import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
-import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanResult;
 import android.content.DialogInterface;
@@ -42,7 +40,7 @@ public class BluetoothFragment extends Fragment {
 	private BluetoothGatt mBluetoothGatt = null;
 	private ArrayAdapter<String> mBluetoothPairedArrayAdapter;
 	private ArrayAdapter<String> mBluetoothAvailableArrayAdapter;
-	private AtomActivity mAtomActivity = new AtomActivity();
+	private BluetoothLEActivity mBLEActivity = new BluetoothLEActivity();
 	ListView mPairedDeviceListView;
 	ListView mAvailableDeviceListView;
 	ArrayList<BluetoothDevice> mBluetoothAvailableArrayList;
@@ -50,13 +48,13 @@ public class BluetoothFragment extends Fragment {
 	protected static final int SUCCESS_CONNECT = 0;
 	protected static final int MESSAGE_READ = 1;
 	private Handler mHandler = new Handler();
-	private static final long SCAN_PERIOD = 60000;
-	String TAG = "FLOAT";
+	private static final long SCAN_PERIOD = 12000;
+	String TAG = "BLE";
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup parentViewGroup, Bundle savedInstanceState) {
 		View rootView = inflater.inflate(R.layout.bluetooth_fragment, parentViewGroup, false);
-		Button bluetoothOn = (Button) rootView.findViewById(R.id.btn_bluetooth_on);
+		Button bluetoothOn = (Button) rootView.findViewById(com.android.bluetooth.le.sample.R.id.btn_bluetooth_on);
 		Button bluetoothOff = (Button) rootView.findViewById(R.id.btn_bluetooth_off);
 		Button bluetoothSearch = (Button) rootView.findViewById(R.id.btn_bluetooth_search);
 		mAvailableDeviceListView = (ListView) rootView.findViewById(R.id.available_device_list);
@@ -67,13 +65,13 @@ public class BluetoothFragment extends Fragment {
 		mBluetoothAvailableArrayList = new ArrayList<BluetoothDevice>();
 		mBluetoothPairedArrayList = new ArrayList<BluetoothDevice>();
 
-		if(mAtomActivity.getBluetoothAdapter() == null) {
+		if(mBLEActivity.getBluetoothAdapter() == null) {
 			Toast.makeText(getActivity(),"Device does not support Bluetooth"
 					,Toast.LENGTH_LONG).show();
 			return rootView;
 		}
 
-		if(mAtomActivity.getBluetoothAdapter().isEnabled()) {
+		if(mBLEActivity.getBluetoothAdapter().isEnabled()) {
 			clearAvailableDevices();
 		} else {
 
@@ -83,7 +81,7 @@ public class BluetoothFragment extends Fragment {
 			@Override
 			public void onClick(View v) {
 				// TODO Auto-generated method stub
-				if (!mAtomActivity.getBluetoothAdapter().isEnabled()) {
+				if (!mBLEActivity.getBluetoothAdapter().isEnabled()) {
 					Intent turnOn = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
 					startActivityForResult(turnOn, 0);
 					Toast.makeText(getActivity(),"Bluetooth turned on"
@@ -102,7 +100,7 @@ public class BluetoothFragment extends Fragment {
 			@Override
 			public void onClick(View v) {
 				// TODO Auto-generated method stub
-				mAtomActivity.getBluetoothAdapter().disable();
+				mBLEActivity.getBluetoothAdapter().disable();
 				Toast.makeText(getActivity(),"Bluetooth turned off" ,
 						Toast.LENGTH_LONG).show();
 				clearAvailableDevices();
@@ -116,8 +114,10 @@ public class BluetoothFragment extends Fragment {
 			public void onClick(View v) {
 				// TODO Auto-generated method stub
 				clearAvailableDevices();
-				if(mAtomActivity.getBluetoothAdapter().isEnabled()) {
+				if(mBLEActivity.getBluetoothAdapter().isEnabled()) {
 					startBluetoothLEScan();
+				} else {
+					Toast.makeText(mBLEActivity, "Turn on Bluetooth", Toast.LENGTH_SHORT).show();
 				}
 			}
 		};
@@ -188,11 +188,10 @@ public class BluetoothFragment extends Fragment {
 		return rootView;
 	}
 
-	@SuppressLint("NewApi")
 	public void startBluetoothLEScan() {
 		//		int apiVersion = android.os.Build.VERSION.SDK_INT;
 		//		if (apiVersion > android.os.Build.VERSION_CODES.KITKAT){
-		//			final BluetoothLeScanner scanner = mAtomActivity.getBluetoothAdapter().getBluetoothLeScanner();
+		//			final BluetoothLeScanner scanner = mBLEActivity.getBluetoothAdapter().getBluetoothLeScanner();
 		//			mHandler.postDelayed(new Runnable() {
 		//				@Override
 		//				public void run() {
@@ -204,16 +203,15 @@ public class BluetoothFragment extends Fragment {
 		mHandler.postDelayed(new Runnable() {
 			@Override
 			public void run() {
-				mAtomActivity.getBluetoothAdapter().stopLeScan(mLeScanCallback);
+				mBLEActivity.getBluetoothAdapter().stopLeScan(mLeScanCallback);
 			}
 		}, SCAN_PERIOD);
-		mAtomActivity.getBluetoothAdapter().startLeScan(mLeScanCallback);
+		mBLEActivity.getBluetoothAdapter().startLeScan(mLeScanCallback);
 	}
 	//	}
 
-	@SuppressLint("NewApi")
 	private BluetoothAdapter.LeScanCallback mLeScanCallback =
-	new BluetoothAdapter.LeScanCallback() {
+			new BluetoothAdapter.LeScanCallback() {
 		@Override
 		public void onLeScan(final BluetoothDevice device, int rssi,
 				byte[] scanRecord) {
@@ -227,7 +225,7 @@ public class BluetoothFragment extends Fragment {
 		}
 	};
 
-	@SuppressLint("NewApi")
+	@SuppressLint("NewApi") 
 	private ScanCallback mLeScannerCallback = new ScanCallback() {
 		@Override
 		public void onScanResult(int callback, ScanResult result) {
@@ -242,12 +240,11 @@ public class BluetoothFragment extends Fragment {
 		}
 	};
 
-	@SuppressLint("NewApi")
 	public boolean connect(final BluetoothDevice device) {
 		if (device == null) {
 			return false;
 		}
-		if (mAtomActivity.getBluetoothAdapter() == null || device.getAddress() == null) return false;
+		if (mBLEActivity.getBluetoothAdapter() == null || device.getAddress() == null) return false;
 
 		// check if we need to connect from scratch or just reconnect to previous device
 		/*if(mBluetoothGatt != null && mBluetoothGatt.getDevice().getAddress().equals(device.getAddress())) {
@@ -265,7 +262,6 @@ public class BluetoothFragment extends Fragment {
 		return true;
 	}
 
-	@SuppressLint("NewApi")
 	private final BluetoothGattCallback mBleGattConnectCallback = new BluetoothGattCallback() {
 		@Override
 		public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -300,8 +296,15 @@ public class BluetoothFragment extends Fragment {
 					for(BluetoothGattCharacteristic characteristic : bluetoothGattChars) {
 						String characteristicName = BleNamesResolver.resolveCharacteristicName(characteristic.getUuid().toString());
 						Log.d(TAG, "BluetoothGatt BluetoothGattService: " + serviceName + "BluetoothGattCharacteristic: " + characteristicName + "UUID: " + characteristic.getUuid().toString());
+						//To read requested characteristic. Triggers onCharacteristicRead.
+						mBluetoothGatt.readCharacteristic(characteristic);
+						//To get notified for change in characteristic. onCharacteristicChanged is triggered.
+						boolean success = mBluetoothGatt.setCharacteristicNotification
+								(characteristic, true);
+						//The below method writes the characteristic to the remote device 
+						writeCharacteristic(characteristic);
 					}
-					
+
 					Log.d(TAG, "BluetoothGatt BluetoothGattService: " + serviceName + "UUID: " + service.getUuid().toString());
 				}
 			}
@@ -333,6 +336,23 @@ public class BluetoothFragment extends Fragment {
 		};
 	};
 
+	private boolean writeCharacteristic(
+			BluetoothGattCharacteristic characteristic) {
+		// TODO Auto-generated method stub
+		if(mBluetoothGatt == null) {
+			Log.e(TAG, "connection lost");
+			return false;
+		}
+
+		byte[] value = new byte[1];
+		byte data = 'c';//The value to be written
+		value[0] = (byte) (data);
+		characteristic.setValue(value);
+		//To write characteristic. Triggers onCharacteristicWrite.
+		boolean status = mBluetoothGatt.writeCharacteristic(characteristic);
+		return status;
+	}
+
 	public void clearPairedDevices() {
 		// TODO Auto-generated method stub
 		mBluetoothPairedArrayAdapter.clear();
@@ -343,7 +363,7 @@ public class BluetoothFragment extends Fragment {
 	public void displayPairedDevices() {
 		// TODO Auto-generated method stub
 		Set<BluetoothDevice> pairedDevices;
-		pairedDevices = mAtomActivity.getBluetoothAdapter().getBondedDevices();
+		pairedDevices = mBLEActivity.getBluetoothAdapter().getBondedDevices();
 		mBluetoothPairedArrayAdapter.clear();
 		mBluetoothPairedArrayList.clear();
 		for(BluetoothDevice device : pairedDevices) {
@@ -373,21 +393,18 @@ public class BluetoothFragment extends Fragment {
 		mBluetoothAvailableArrayAdapter.notifyDataSetChanged();
 	}
 
-	@SuppressLint("NewApi")
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
 		if(mBluetoothGatt != null) mBluetoothGatt.disconnect();
 	}
 
-	@SuppressLint("NewApi")
 	@Override
 	public void onPause() {
 		super.onPause();
 		if(mBluetoothGatt != null) mBluetoothGatt.disconnect();
 	}
 
-	@SuppressLint("NewApi")
 	public void startServicesDiscovery() {
 		if(mBluetoothGatt != null) mBluetoothGatt.discoverServices();
 	}

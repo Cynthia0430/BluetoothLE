@@ -1,4 +1,4 @@
-package com.floatdesignlabs.android.atom.bluetooth;
+package com.android.bluetooth.le.sample.utils;
 
 import java.util.HashMap;
 
